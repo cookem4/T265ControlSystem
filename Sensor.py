@@ -62,11 +62,11 @@ class Sensor:
                     r31 = 2 * (q1 * q3 - q0 * q2)   
                     yaw = math.atan2(-r31,r11)
                     '''
-                    roll  = math.atan2(2*y*w + 2*x*z, 1 - 2*y*y - 2*z*z)
-                    pitch = math.atan2(2*x*w + 2*y*z, 1 - 2*x*x - 2*z*z)
-                    yaw   = math.asin(2*x*y + 2*z*w)
-                    #Re-assign since the yaw is actually the pitch
-                    yaw = pitch
+                    
+                    yaw  = math.atan2(2*y*w + 2*x*z, 1 - 2*y*y - 2*z*z)
+                    roll = math.atan2(2*x*w + 2*y*z, 1 - 2*x*x - 2*z*z)
+                    pitch   = math.asin(2*x*y + 2*z*w)
+                    
                     '''
                     print("Roll")
                     print(roll*180/math.pi)
@@ -76,6 +76,9 @@ class Sensor:
                     print(yaw*180/math.pi)
                     print("===========================================")
                     '''
+                    #Re-assign since the yaw is actually the pitch
+                    yaw = math.atan2(2*x*w + 2*y*z, 1 - 2*x*x - 2*z*z)
+                    
                     # initializing yawFiltered
                     if (self.initFlag == False):
                             self.yawFiltered[i] = yaw

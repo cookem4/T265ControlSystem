@@ -1,4 +1,4 @@
-
+from Quaternion         import Quaternion
 from PB_Control         import PB_Control
 from Trajectory_Planner import Trajectory_Planner
 from Sensor             import Sensor
@@ -15,18 +15,20 @@ from time import sleep
 import numpy as np
 import math
 import time
+import copy #For deep copies
 
 #Replace this with a thread that takes realsense cameras and places them into the variables
 def receiveRigidBodyFrame():
     i=0
-    global positions, orientations, recordingTimes
+    global positions, orientations, recordingTimes, originalQuart
     while True:
-        try:
+        try:            
             i=i+1
             with open('/home/pi/t265/coordinateData.csv') as csv_file:
                 csv_reader = csv.reader(csv_file, delimiter=',')
                 line_count=0
                 for row in csv_reader:
+                    
                     #Must map these coordiantes to the same as the way Motiv motion capture would have mappd them
                     #Have camera positioned such that it is facing the front table
                     #Y axis are the same
@@ -35,22 +37,41 @@ def receiveRigidBodyFrame():
                     positions[0][0] = float(row[6]) #x
                     positions[0][1] = float(row[7]) #y
                     positions[0][2] = float(row[8]) #z
-                    #The following function transforms the quarternions to have the 30 degree camera angle as no rotation with a [0 0 0 1] quaternion
-                    orientations[0] = rotateQuart(float(row[2]), float(row[3]), float(row[4]), float(row[5]))
-                    #orientations[0][0] = float(row[2])
-                    #orientations[0][1] = float(row[3])
-                    #orientations[0][2] = float(row[4])
-                    #orientations[0][3] = float(row[5])
-                    '''Means that the data was received properly
-                    '''
+
+                    if(originalQuart.x == 0 and originalQuart.y == 0 and originalQuart.z ==0 and originalQuart.w == 0):
+                        originalQuart = Quaternion(float(row[2]), float(row[3]), float(row[4]), float(row[5]))
+                    currQuart = Quaternion(float(row[2]), float(row[3]), float(row[4]), float(row[5]))
+                    #Following operation makes the current quaternion the delta between the current orintation vector and the original
+                    transform = originalQuart.inverse().multiplication(currQuart)
+                    orientations[0] = [transform.x, transform.y, transform.z, transform.w]
+                    
                     trackingFlags[0] = True
+
+                    
                     recordingTimes[0] = recordingTimes[1]
-                    recordingTimes[1] = int(row[0])
+                    recordingTimes[1] = int(row[1]) #This gives time in microseconds
+                    
+                    '''
+                    recordingTimes[0] = recordingTimes[1]
+                    recordingTimes[1] = int(round(time.time()*1000))
+                    print("Time From array: " + str(recordingTimes[1]-recordingTimes[0]))
+                    '''                  
+
+
+                    
+                    ###############################
+                    ##Possible source of error: ###
+                    ###############################
+                    #Period from camera measurements in this thread is 142ms. It is not actually running at 200Hz as was thought with the PI
+                    #The reason for this is printing the period actually takes 140ms
+                    
                 #Used to sync the threads
                 event.set()
         except:
             #print("Indexing Error")
-            print(None)
+            print()
+
+'''
 def rotateQuart(x, y, z, w):
     roll  = math.atan2(2*y*w + 2*x*z, 1 - 2*y*y - 2*z*z)
     pitch = math.atan2(2*x*w + 2*y*z, 1 - 2*x*x - 2*z*z)
@@ -63,19 +84,26 @@ def rotateQuart(x, y, z, w):
     qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
     qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
     return [qx, qy, qz, qw]
-
+'''
 def mainThread_run():
     global positions, orientations, trackingFlags, numCopters, payloadPose, recordingTimes #These are the interface variables to the optitrackThread
     global commandsToGo #This is the interface to the comThread
     global ARM, DISARM, ANGLE_MODE, NEUTRAL, ZERO_ROLL, ZERO_PITCH, ZERO_THROTTLE, ZERO_YAW_RATE
     loopCounter = 0
     expTime = 0
-    
+    start = 0
+    end = 0
+    timeSum = 0
+    timeCt = 0
     while True:
-        #EStop_failsafe.updateArmingState() #Read data from Estop
+
+
+        EStop_failsafe.updateArmingState() #Read data from Estop
+
+
         ##Normal closed-loop run in safe mode##
         #Was in the Following conditional: EStop_failsafe.armingState == ord('1')
-        if(trajPlanner.ARM_FLAG == True and trajPlanner.FAILSAFE_FLAG == False and sensor.FAILSAFE_FLAG == False and True):
+        if(trajPlanner.ARM_FLAG == True and trajPlanner.FAILSAFE_FLAG == False and sensor.FAILSAFE_FLAG == False and EStop_failsafe.armingState == ord('1')):
             event.wait()  #Wait untill the camera measurements are updated for all the drones
             event.clear() #Clear the event for the next cycle
             if (sensor.initFlag == False):
@@ -89,22 +117,34 @@ def mainThread_run():
                     #X of camera becomes Y of flight controller
                     #Y of camera becomes Z of flight controller
                 #Re mapping coordinates
-                timeDiff = recordingTimes[1] - recordingTimes[0]
-                if(recordingTimes[0] == 0 or timeDiff == 0): #If on first iteration and does not have a time difference
-                    timeDiff = 9 #115 Hz average recording rate of the camera
-                
-                sensor.process(positions, orientations, trackingFlags, timeDiff)
                 #Camera coordinate system
                 x = sensor.Position[0][0]
                 y = sensor.Position[0][1]
                 z = sensor.Position[0][2]
                 #Transform to Flight Controller coordinate system
-                #FC X
-                sensor.Position[0][0] = z
-                #FC Y
-                sensor.Position[0][1] = x
-                #FC Z
-                sensor.Position[0][2] = y
+                sensor.Position[0][0] = copy.deepcopy(z)
+                sensor.Position[0][1] = copy.deepcopy(x)
+                sensor.Position[0][2] = copy.deepcopy(y)
+                
+                ##############################
+                ####Remove this###############
+                ##############################
+                #Calculating recording time of the camera for a frame. - Remove this as it introduced a lot of noise to velocity
+                timeDiff = recordingTimes[1] - recordingTimes[0]
+                if(recordingTimes[0] == 0 or timeDiff == 0): #If on first iteration and does not have a time difference
+                    timeDiff = 9 #115 Hz average recording rate of the camera
+                
+                sensor.process(positions, orientations, trackingFlags, timeDiff)
+
+                #Finds the frequency of this thread
+                #Runs at 22Hz due to the raspberry pi being slow
+                end = int(round(time.time()*1000))
+                if((end-start)<100):
+                    timeSum = timeSum + (end-start)
+                    timeCt = timeCt + 1
+                    print("Time Average: " + str(timeSum/timeCt))
+                start = int(round(time.time()*1000))
+                
                 
                 ###################################################
                 ####THIS YAW IS ACTUALLY THE PITCH OF THE CAMERA###
@@ -113,7 +153,6 @@ def mainThread_run():
                 #Need to determine how the found yaw compares to the actual yaw
                 #print((sensor.yaw[0]*180)/math.pi)
                 #print((sensor.yawFiltered[0]*180)/math.pi)
-                print(sensor.Velocity)
                 
                 trajPlanner.generate(expTime, sensor.Position, sensor.Velocity)
                 controller.control_allocation(expTime, sensor.yawFiltered,
@@ -123,8 +162,23 @@ def mainThread_run():
                 i=0
                 commandsToGoTemp.append(controller.mappedCommands[i] + [ARM, ANGLE_MODE, NEUTRAL, NEUTRAL])
                 commandsToGo = commandsToGoTemp
-                #Log data
+
+                #print(sensor.Position[0])
+                #print(trajPlanner.desiredPose)
                 
+                #Log data
+                '''
+                print(trajPlanner.desiredPose)
+                print(controller.fXYZ[i])
+                print(sensor.Position[i])
+                print(sensor.Velocity[i])
+                print(sensor.yawFiltered[i])
+                print(controller.roll[i])
+                print(controller.pitch[i])
+                print(controller.throttle[i])
+                print(controller.yawRate[i])
+                print("========================================================")
+                '''
                 logger.getData([('posDesiredX0', trajPlanner.desiredPose[0]), ('posDesiredY0', trajPlanner.desiredPose[1]), ('posDesiredZ0', trajPlanner.desiredPose[2])])
                 logger.getData([('Fx'+str(i), controller.fXYZ[i][0]), ('Fy'+str(i), controller.fXYZ[i][1]), ('Fz'+str(i), controller.fXYZ[i][2])])
                 logger.getData([('posErrX'+str(i), trajPlanner.errors[i][0]), ('posErrY'+str(i), trajPlanner.errors[i][1]), ('posErrZ'+str(i), trajPlanner.errors[i][2])])
@@ -141,18 +195,18 @@ def mainThread_run():
         else:
             #Case1: Experiment completed
             #Was in the following conditional: EStop_failsafe.armingState == ord('1')
-            if(trajPlanner.ARM_FLAG == False and trajPlanner.FAILSAFE_FLAG == False and sensor.FAILSAFE_FLAG == False and True):
+            if(trajPlanner.ARM_FLAG == False and trajPlanner.FAILSAFE_FLAG == False and sensor.FAILSAFE_FLAG == False and EStop_failsafe.armingState == ord('1')):
                 print("Experiment completed successfully.")
             #Case2: Failsafe triggered
-            '''
+            
             else:
                 if (EStop_failsafe.armingState != ord('1')):
-                    print("Failsafe, root cause: stop button")
+                    print("Failsafe, root cause: stop button:" + str(EStop_failsafe.armingState))
                 elif(sensor.FAILSAFE_FLAG == True):
                     print("Failsafe, root cause: camera system lost track of at least one copter")
                 else:
                     print("Failsafe, root cause: large deviation from the virtual points")
-            '''
+            
             #Send disarm commands to all copters
             commandsToGoTemp = []
             i=0
@@ -226,7 +280,8 @@ if (__name__ == '__main__'):
     trackingFlags.append(False)
     initTime = 0.0
     expTime = 0.0
-
+    originalQuart = Quaternion(0, 0, 0, 0)
+    errorsZList = []
     ######## Creating instances of all required classes (creating objects) #########
     ################################################################################
     event = Event() # Event object to sync the main thread and the optitrack thread
@@ -235,7 +290,7 @@ if (__name__ == '__main__'):
     sensor         = Sensor(numCopters)                       #Sensor object. Grabs camera measurements and estimates linear velocities.
     trajPlanner    = Trajectory_Planner()                     #Trajectory planning object. Generates time dependent trajectories or set points.
     controller     = PB_Control()                             #Passivity based controller object. Determines desired thrust, roll, and pitch of each copter.
-    #EStop_failsafe = EStop('COM4', 115200)                   #EStop object. When pressed, EStop disarms FC & puts in failsafe mode.
+    EStop_failsafe = EStop('/dev/ttyUSB1', 115200)                   #EStop object. When pressed, EStop disarms FC & puts in failsafe mode.
     logger         = Logger()                                 #Loggs and plots variables
     debugLogger         = Logger()                                 #Loggs and plots variables
 
