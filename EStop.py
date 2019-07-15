@@ -5,6 +5,8 @@ class EStop:
 		
 		armingState = 0;
 		noDataCount = 0;
+		timeSum = 0
+		timeCt = 0
 
 		def __init__(self, port = '/dev/ttyUSB2', baudrate = 115200):
 
@@ -21,7 +23,7 @@ class EStop:
 			print("*EStop* - Port successfully Opened.")
 
 		def updateArmingState(self):
-                        data = self.ser_EStop.readline()                #Read in data from serial port
+                        data = self.ser_EStop.readline() #Read in data from serial port
                         if(len(data) > 0):
                                 self.armingState = data[len(data)-1]
                                 self.noDataCount=0

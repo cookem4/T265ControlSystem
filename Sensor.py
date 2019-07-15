@@ -2,7 +2,8 @@ import math
 import numpy as np
 from scipy import signal
 from Velocity_Filter import Velocity_Filter
-
+from Position_Filter import Position_Filter
+from Velocity_Filter_New import Velocity_Filter_New
 class Sensor:
     ##FailSafe Related##
     trackLostCounter = []
@@ -16,6 +17,7 @@ class Sensor:
     Velocity = [] # INTERFACE ATTRIBUTE. Contains all velocity vectors of all copters. List of lists. Initializes at zeros.
     tempVel = []
 
+    
     ##Yaw Related##
     initYaw = []
     yaw = []
@@ -23,11 +25,12 @@ class Sensor:
     yawFiltered = [] #INTERFACE ATTRIBUTE. Initializes based on camera measuremnts.
     
     ##Filter related##
-    firFilter0 = Velocity_Filter(order = 3, cutoff = 0.95, channelNum = 3) #"Numerical derivation and filtering of the camera measurements"
-    firFilter1 = Velocity_Filter(order = 3, cutoff = 0.05, channelNum = 3) #"Numerical derivation and filtering of the camera measurements"
-    firFilter2 = Velocity_Filter(order = 3, cutoff = 0.05, channelNum = 3) #"Numerical derivation and filtering of the camera measurements"
+    firPosFilter = Position_Filter(7) #7 is the max order that minimizes phase delay to around 10ms requrement
+
+    firVelFilter = Velocity_Filter_New(5,0.1)
+    #firFilter0 = Velocity_Filter(order = 3, cutoff = 0.1, channelNum = 3) #"Numerical derivation and filtering of the camera measurements"
     #Modifying filter value from 0.1m/s
-    nonlinFilterThreshold =  1.5 # m/s
+    nonlinFilterThreshold =  0.5 # m/s
 
     def __init__(self, numCopters):
         for i in range (numCopters):
@@ -38,6 +41,7 @@ class Sensor:
             self.yawCounter.append(0) # Yaw conters initialized at 0s.
             self.yawFiltered.append(0) # Yaw will be initialized with the actual measurements later.
             self.trackLostCounter.append(0)
+            self.firPosFilter = Position_Filter(7)
             
     def failSafe(self, trackingFlag): # This is a list of tracking indexes
         for i in range (len(trackingFlag)):
@@ -100,15 +104,33 @@ class Sensor:
     def setPosition(self, Position, trackingFlag): #Sets all positions by accounting for the initial position offset. Leader is placed in the origin of the world frame!
         for i in range (len(Position)):
             if (trackingFlag[i] == True):
-                #self.Position[i] = [(Position[i][j] - self.initLeaderPosition[j]) for j in range(0,3)]
-                self.Position[i] = Position[i]
+                pos = Position[i]
+                self.firPosFilter.updateOriginalPosition(pos[0], pos[1], pos[2])
+                if(self.firPosFilter.isFilteringAvailable()):
+                    pos = self.firPosFilter.calculateFilteredPosition()
+                self.Position[i] = pos
     def estimateVel(self, timeDiff):
+        self.firVelFilter.updateVelocity(self.Position[0][0], self.Position[0][1], self.Position[0][2], timeDiff)
+        velocity = self.firVelFilter.velocitySet[-1]
+        if(self.firVelFilter.isFilteringAvailable()):
+            velocity = self.firVelFilter.calculateFilteredVelocity()
+        self.Velocity[0] = velocity
+        '''
         for i in range (len(self.Position)):
-            tempVel = eval('self.firFilter' + str(i) + '.numDiff_FIR(self.Position[i], timeDiff)')
-            for j in range (len(tempVel)):  #Nonlinear filtering (spike remover)
-                            if (abs(self.tempVel[i][j] - tempVel[j]) < self.nonlinFilterThreshold):
-                                self.Velocity[i][j] = tempVel[j]
-                            self.tempVel[i][j] = tempVel[j]
+            if(not(self.pastVelSet)):
+                self.Velocity[i] = tempVel
+                self.lastVel = tempVel
+                self.pastVelSet = True
+            else:
+                currVelMag = (self.tempVel[i][0]**2 + self.tempVel[i][1]**2  + self.tempVel[i][2]**2 )**0.5
+                pastVelMag = (self.lastVel[0]**2  + self.lastVel[1]**2  + self.lastVel[2]**2 )**0.5
+                if (abs(currVelMag - pastVelMag) < self.nonlinFilterThreshold):
+                    #Pass the bandpass filter
+                    self.Velocity[i] = tempVel
+                    self.lastVel = tempVel
+                else:
+                    self.Velocity[i] = self.lastVel
+        '''
                         
     def process(self, Position, Orientation, trackingFlag, timeDiff): # Position and Orientation are lists of lists and trackingFlag is a list.
         #Initializing measurements

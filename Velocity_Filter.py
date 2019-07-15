@@ -15,10 +15,9 @@ class Velocity_Filter():
         self.clock_prev = 0
 
     def numDiff_FIR(self, curChannelData, timeDiff):
-        #Divide by 1 million since the time difference is in micro seconds
-        multiplier = 1000000/float(timeDiff) #Frequency of each measurement in Hz
         for i in range(0,len(curChannelData)):
-            self.velCur_m[i,0] = (curChannelData[i] - self.posOld_m[i,0])*multiplier    #Numerical differntiation to get current velocity
+            multiplier = 1000/timeDiff
+            self.velCur_m[i,0] = (curChannelData[i] - self.posOld_m[i,0])*multiplier     #Numerical differntiation to get current velocity
             self.posOld_m[i,0] = curChannelData[i]                                  #Update old position
         
         self.velDataRaw_m[:,1:self.velDataRaw_m.shape[1]] = self.velDataRaw_m[:, 0:self.velDataRaw_m.shape[1]-1]   #Shift all elements to the right by 1
