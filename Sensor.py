@@ -14,9 +14,10 @@ class Sensor:
     initFlag = False
     initLeaderPosition = [0, 0, 0]
     Position = [] # INTERFACE ATTRIBUTE. A list of lists; each of sublist contains the position of a copter in the world frame. Initializes based on camera measurements.
-    Velocity = [] # INTERFACE ATTRIBUTE. Contains all velocity vectors of all copters. List of lists. Initializes at zeros.
+    Velocity = [] # INTERFACE ATTRIBUTE. Contains all velocity vectors of all copters. List of lists. Initializes at
     tempVel = []
-
+    lastValidVel = 0
+    unfilteredPosition = [[]]
     
     ##Yaw Related##
     initYaw = []
@@ -27,10 +28,10 @@ class Sensor:
     ##Filter related##
     firPosFilter = Position_Filter(7) #7 is the max order that minimizes phase delay to around 10ms requrement
 
-    firVelFilter = Velocity_Filter_New(5,0.1)
-    #firFilter0 = Velocity_Filter(order = 3, cutoff = 0.1, channelNum = 3) #"Numerical derivation and filtering of the camera measurements"
+    firVelFilter = Velocity_Filter_New(3,0.15)
+    #firFilter0 = Velocity_Filter(order = 3, cutoff = 0.99, channelNum = 3) #"Numerical derivation and filtering of the camera measurements"
     #Modifying filter value from 0.1m/s
-    nonlinFilterThreshold =  0.5 # m/s
+    nonlinFilterThreshold =  0.1 # m/s
 
     def __init__(self, numCopters):
         for i in range (numCopters):
@@ -42,6 +43,7 @@ class Sensor:
             self.yawFiltered.append(0) # Yaw will be initialized with the actual measurements later.
             self.trackLostCounter.append(0)
             self.firPosFilter = Position_Filter(7)
+            self.firVelFilter = Velocity_Filter_New(3,0.15)
             
     def failSafe(self, trackingFlag): # This is a list of tracking indexes
         for i in range (len(trackingFlag)):
@@ -109,28 +111,48 @@ class Sensor:
                 if(self.firPosFilter.isFilteringAvailable()):
                     pos = self.firPosFilter.calculateFilteredPosition()
                 self.Position[i] = pos
+                self.unfilteredPosition[i] = Position[i]
     def estimateVel(self, timeDiff):
+        '''
         self.firVelFilter.updateVelocity(self.Position[0][0], self.Position[0][1], self.Position[0][2], timeDiff)
         velocity = self.firVelFilter.velocitySet[-1]
         if(self.firVelFilter.isFilteringAvailable()):
-            velocity = self.firVelFilter.calculateFilteredVelocity()
-        self.Velocity[0] = velocity
-        '''
-        for i in range (len(self.Position)):
-            if(not(self.pastVelSet)):
-                self.Velocity[i] = tempVel
-                self.lastVel = tempVel
-                self.pastVelSet = True
+            retArr = self.firVelFilter.calculateFilteredVelocity()
+            velocity = retArr[0]
+            didItPass = retArr[1]
+            #Update reading if it made it throuh the band pass, otherwise don't update
+            if(didItPass):
+                self.Velocity[0] = velocity
             else:
-                currVelMag = (self.tempVel[i][0]**2 + self.tempVel[i][1]**2  + self.tempVel[i][2]**2 )**0.5
-                pastVelMag = (self.lastVel[0]**2  + self.lastVel[1]**2  + self.lastVel[2]**2 )**0.5
-                if (abs(currVelMag - pastVelMag) < self.nonlinFilterThreshold):
-                    #Pass the bandpass filter
-                    self.Velocity[i] = tempVel
-                    self.lastVel = tempVel
-                else:
-                    self.Velocity[i] = self.lastVel
+                self.Velocity[0] = self.firVelFilter.lastValidVel
+        else:
+            self.firVelFilter.checkBandPass()
+            self.Velocity[0] = velocity
+        
         '''
+        self.firVelFilter.updateVelocity(self.Position[0][0], self.Position[0][1], self.Position[0][2], timeDiff)
+        #Improve thresholding to be within a certain range of the last valid value
+        #if(self.firVelFilter.isFilteringAvailable()):
+        if(len(self.firVelFilter.velocitySet) > 1):
+            #magnitudePast = (self.firVelFilter.velocitySet[-2][0]**2 + self.firVelFilter.velocitySet[-2][1]**2 + self.firVelFilter.velocitySet[-2][2]**2)**0.5
+            magnitudePast = (self.lastValidVel[0]**2 + self.lastValidVel[1]**2 + self.lastValidVel[2]**2)**0.5            
+            magnitudeCurr = (self.firVelFilter.velocitySet[-1][0]**2 + self.firVelFilter.velocitySet[-1][1]**2 + self.firVelFilter.velocitySet[-1][2]**2)**0.5
+            if(abs(magnitudePast - magnitudeCurr) > self.firVelFilter.bandWidth):
+                #Did not pass the threshold, update value in the firVelFilter velocity set
+                self.Velocity[0] = self.lastValidVel
+                self.firVelFilter.velocitySet[-1]  = self.lastValidVel
+            else:
+                #Passes threshold, apply the low pass filter
+                if(self.firVelFilter.isFilteringAvailable()):
+                    self.Velocity[0] = self.firVelFilter.calculateFilteredVelocity()
+                else:
+                    self.Velocity[0] = self.firVelFilter.velocitySet[-1]
+                self.lastValidVel = self.firVelFilter.velocitySet[-1]
+        else:
+            self.Velocity[0] = self.firVelFilter.velocitySet[-1]
+            self.lastValidVel = self.firVelFilter.velocitySet[-1]
+        
+                
                         
     def process(self, Position, Orientation, trackingFlag, timeDiff): # Position and Orientation are lists of lists and trackingFlag is a list.
         #Initializing measurements

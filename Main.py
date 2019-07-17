@@ -173,23 +173,25 @@ def mainThread_run():
                 
                 #Log data
                 
-                logger.getData([('posDesiredX0', trajPlanner.desiredPose[0]), ('posDesiredY0', trajPlanner.desiredPose[1]), ('posDesiredZ0', trajPlanner.desiredPose[2])])
-                logger.getData([('Fx'+str(i), controller.fXYZ[i][0]), ('Fy'+str(i), controller.fXYZ[i][1]), ('Fz'+str(i), controller.fXYZ[i][2])])
-                logger.getData([('posErrX'+str(i), trajPlanner.errors[i][0]), ('posErrY'+str(i), trajPlanner.errors[i][1]), ('posErrZ'+str(i), trajPlanner.errors[i][2])])
+                #logger.getData([('posDesiredX0', trajPlanner.desiredPose[0]), ('posDesiredY0', trajPlanner.desiredPose[1]), ('posDesiredZ0', trajPlanner.desiredPose[2])])
+                #logger.getData([('Fx'+str(i), controller.fXYZ[i][0]), ('Fy'+str(i), controller.fXYZ[i][1]), ('Fz'+str(i), controller.fXYZ[i][2])])
+                #logger.getData([('posErrX'+str(i), trajPlanner.errors[i][0]), ('posErrY'+str(i), trajPlanner.errors[i][1]), ('posErrZ'+str(i), trajPlanner.errors[i][2])])
                 logger.getData([('posx'+str(i), sensor.Position[i][0]), ('posy'+str(i), sensor.Position[i][1]), ('posz'+str(i), sensor.Position[i][2])])
                 logger.getData([('velx'+str(i), sensor.Velocity[i][0]), ('vely'+str(i), sensor.Velocity[i][1]), ('velz'+str(i), sensor.Velocity[i][2])])
-                logger.getData([('yaw'+ str(i), sensor.yawFiltered[i])])
-                logger.getData([('rollCmd'+str(i), controller.roll[i]),('pitchCmd'+str(i), controller.pitch[i]),
-                                ('throttleCmd'+str(i), controller.throttle[i]), ('yawRateCmd'+str(i), controller.yawRate[i])])
-                logger.getData([('mspRoll'+str(i), controller.mappedCommands[i][0]), ('mspPitch'+str(i), controller.mappedCommands[i][1]),
-                             ('mspThrottle'+str(i), controller.mappedCommands[i][2]), ('mspYawRate'+str(i), controller.mappedCommands[i][3])])
-                logger.getData([('trackingFlag'+str(i), trackingFlags[i])])
+                #logger.getData([('yaw'+ str(i), sensor.yawFiltered[i])])
+                #logger.getData([('rollCmd'+str(i), controller.roll[i]),('pitchCmd'+str(i), controller.pitch[i]),
+                #                ('throttleCmd'+str(i), controller.throttle[i]), ('yawRateCmd'+str(i), controller.yawRate[i])])
+                #logger.getData([('mspRoll'+str(i), controller.mappedCommands[i][0]), ('mspPitch'+str(i), controller.mappedCommands[i][1]),
+                #             ('mspThrottle'+str(i), controller.mappedCommands[i][2]), ('mspYawRate'+str(i), controller.mappedCommands[i][3])])
+                #logger.getData([('trackingFlag'+str(i), trackingFlags[i])])
                 logger.saveData()
                 
                 
         else:
-            
             #Case1: Experiment completed
+            with open('velocities.txt', 'w') as f:
+                for item in sensor.firVelFilter.velocitySet:
+                    f.write("%s\n" % item)
             #Was in the following conditional: EStop_failsafe.armingState == ord('1')
             if(trajPlanner.ARM_FLAG == False and trajPlanner.FAILSAFE_FLAG == False and sensor.FAILSAFE_FLAG == False and stopBtnPressed):
                 print("Experiment completed successfully.")
@@ -214,17 +216,17 @@ def mainThread_run():
             
             logger.saveDataToFile()
             #logger.generatePlots("PayLoad_Position",['posPayloadX', 'posPayloadY', 'posPayloadZ'])
-            logger.generatePlots("Desired_Position_Copter0",['posDesiredX0','posDesiredY0','posDesiredZ0'])
-            logger.generatePlots("Yaw_Orientations",['yaw'+str(i) for i in range (numCopters)])
-            logger.generatePlots("Tracking_Flags",['trackingFlag'+str(i) for i in range (numCopters)])
+            #logger.generatePlots("Desired_Position_Copter0",['posDesiredX0','posDesiredY0','posDesiredZ0'])
+            #logger.generatePlots("Yaw_Orientations",['yaw'+str(i) for i in range (numCopters)])
+            #logger.generatePlots("Tracking_Flags",['trackingFlag'+str(i) for i in range (numCopters)])
             i=0
-            logger.generatePlots("High-level_Force_Commands"+str(i),['Fx'+str(i),'Fy'+str(i),'Fz'+str(i)])
-            logger.generatePlots("Position_Errors_Copter"+str(i),['posErrX'+str(i),'posErrY'+str(i),'posErrZ'+str(i)])
+            #logger.generatePlots("High-level_Force_Commands"+str(i),['Fx'+str(i),'Fy'+str(i),'Fz'+str(i)])
+            #logger.generatePlots("Position_Errors_Copter"+str(i),['posErrX'+str(i),'posErrY'+str(i),'posErrZ'+str(i)])
             logger.generatePlots("Position_Copter"+str(i),['posx'+str(i),'posy'+str(i),'posz'+str(i)])
             logger.generatePlots("Velocity_Copter"+str(i),['velx'+str(i),'vely'+str(i),'velz'+str(i)])
-            logger.generatePlots("Reference_Commands_Copter"+str(i),['rollCmd'+str(i),'pitchCmd'+str(i),'throttleCmd'+str(i),'yawRateCmd'+str(i)])
-            logger.generatePlots("MSP_Commands_Copter"+str(i),['mspRoll'+str(i),'mspPitch'+str(i),'mspThrottle'+str(i),'mspYawRate'+str(i)])
-            debugLogger.generatePlots("Debug_MSP_Commands_Copter"+str(i),['dmspRoll'+str(i),'dmspPitch'+str(i),'dmspThrottle'+str(i),'dmspYawRate'+str(i)])
+            #logger.generatePlots("Reference_Commands_Copter"+str(i),['rollCmd'+str(i),'pitchCmd'+str(i),'throttleCmd'+str(i),'yawRateCmd'+str(i)])
+            #logger.generatePlots("MSP_Commands_Copter"+str(i),['mspRoll'+str(i),'mspPitch'+str(i),'mspThrottle'+str(i),'mspYawRate'+str(i)])
+            #debugLogger.generatePlots("Debug_MSP_Commands_Copter"+str(i),['dmspRoll'+str(i),'dmspPitch'+str(i),'dmspThrottle'+str(i),'dmspYawRate'+str(i)])
             
             break
         loopCounter += 1

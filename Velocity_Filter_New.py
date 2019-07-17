@@ -28,18 +28,26 @@ class Velocity_Filter_New():
             sum[0] = sum[0] + (1/self.order)*(self.velocitySet[len(self.velocitySet)-1-i][0])
             sum[1] = sum[1] + (1/self.order)*(self.velocitySet[len(self.velocitySet)-1-i][1])
             sum[2] = sum[2] + (1/self.order)*(self.velocitySet[len(self.velocitySet)-1-i][2])
-        if(self.checkBandPass()):
-            self.lastValid = sum
-            return sum
-        else:
-            return self.lastValid
+        #Second item says if the signal makes it through the band pass
+        #if(self.checkBandPass()):
+       #     return [sum, True]
+       # else:
+        #    return [sum, False]
+        return sum
+    '''
     def checkBandPass(self):
-        magnitudePast = (self.velocitySet[-2][0]**2 + self.velocitySet[-2][0]**2 + self.velocitySet[-2][0]**2)**0.5
-        magnitudeCurr = (self.velocitySet[-1][0]**2 + self.velocitySet[-1][1]**2 + self.velocitySet[-1][2]**2)**0.5
-        if(abs(magnitudePast-magnitudeCurr)>self.bandWidth):
-            return False
+        if(len(self.velocitySet)>1):
+            magnitudePast = (self.lastValidVel[0]**2 + self.lastValidVel[1]**2 + self.lastValidVel[2]**2)**0.5
+            magnitudeCurr = (self.velocitySet[-1][0]**2 + self.velocitySet[-1][1]**2 + self.velocitySet[-1][2]**2)**0.5
+            if(abs(magnitudePast - magnitudeCurr) > self.bandWidth):
+                return False
+            else:
+                self.lastValidVel = self.velocitySet[-1]
+                return True
         else:
-            return True
+            self.lastValidVel = self.velocitySet[-1]
+            '''
+            
     def isFilteringAvailable(self):
         if(len(self.velocitySet) < self.order):
             return False
