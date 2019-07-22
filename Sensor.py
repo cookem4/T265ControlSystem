@@ -1,7 +1,6 @@
 import math
 import numpy as np
 from scipy import signal
-from Velocity_Filter import Velocity_Filter
 from Position_Filter import Position_Filter
 from Velocity_Filter_New import Velocity_Filter_New
 class Sensor:
@@ -17,7 +16,7 @@ class Sensor:
     Velocity = [] # INTERFACE ATTRIBUTE. Contains all velocity vectors of all copters. List of lists. Initializes at
     tempVel = []
     lastValidVel = 0
-    unfilteredPosition = [[]]
+    unfilteredVel = []
     
     ##Yaw Related##
     initYaw = []
@@ -26,12 +25,10 @@ class Sensor:
     yawFiltered = [] #INTERFACE ATTRIBUTE. Initializes based on camera measuremnts.
     
     ##Filter related##
-    firPosFilter = Position_Filter(7) #7 is the max order that minimizes phase delay to around 10ms requrement
+    firPosFilter = Position_Filter(5) #5 is the max order that minimizes phase delay to around 10ms requrement
 
-    firVelFilter = Velocity_Filter_New(3,0.15)
-    #firFilter0 = Velocity_Filter(order = 3, cutoff = 0.99, channelNum = 3) #"Numerical derivation and filtering of the camera measurements"
-    #Modifying filter value from 0.1m/s
-    nonlinFilterThreshold =  0.1 # m/s
+    #This is set in the constructor, don't modify it here
+    firVelFilter = Velocity_Filter_New(1,0.2)
 
     def __init__(self, numCopters):
         for i in range (numCopters):
@@ -42,8 +39,8 @@ class Sensor:
             self.yawCounter.append(0) # Yaw conters initialized at 0s.
             self.yawFiltered.append(0) # Yaw will be initialized with the actual measurements later.
             self.trackLostCounter.append(0)
-            self.firPosFilter = Position_Filter(7)
-            self.firVelFilter = Velocity_Filter_New(3,0.15)
+            self.firPosFilter = Position_Filter(5)
+            self.firVelFilter = Velocity_Filter_New(1,0.2)
             
     def failSafe(self, trackingFlag): # This is a list of tracking indexes
         for i in range (len(trackingFlag)):
@@ -82,7 +79,7 @@ class Sensor:
                     print(yaw*180/math.pi)
                     print("===========================================")
                     '''
-                    #Re-assign since the yaw is actually the pitch
+                    #Re-assign since the yaw is actually the pitch due to coordinate transformations
                     yaw = math.atan2(2*x*w + 2*y*z, 1 - 2*x*x - 2*z*z)
                     
                     # initializing yawFiltered
@@ -108,41 +105,25 @@ class Sensor:
             if (trackingFlag[i] == True):
                 pos = Position[i]
                 self.firPosFilter.updateOriginalPosition(pos[0], pos[1], pos[2])
+                #Checks if filtering is available and applies it
                 if(self.firPosFilter.isFilteringAvailable()):
                     pos = self.firPosFilter.calculateFilteredPosition()
                 self.Position[i] = pos
-                self.unfilteredPosition[i] = Position[i]
+                
     def estimateVel(self, timeDiff):
-        '''
-        self.firVelFilter.updateVelocity(self.Position[0][0], self.Position[0][1], self.Position[0][2], timeDiff)
-        velocity = self.firVelFilter.velocitySet[-1]
-        if(self.firVelFilter.isFilteringAvailable()):
-            retArr = self.firVelFilter.calculateFilteredVelocity()
-            velocity = retArr[0]
-            didItPass = retArr[1]
-            #Update reading if it made it throuh the band pass, otherwise don't update
-            if(didItPass):
-                self.Velocity[0] = velocity
-            else:
-                self.Velocity[0] = self.firVelFilter.lastValidVel
-        else:
-            self.firVelFilter.checkBandPass()
-            self.Velocity[0] = velocity
-        
-        '''
         self.firVelFilter.updateVelocity(self.Position[0][0], self.Position[0][1], self.Position[0][2], timeDiff)
         #Improve thresholding to be within a certain range of the last valid value
-        #if(self.firVelFilter.isFilteringAvailable()):
+        #If the size of the velocity list is too small set it and set the last valid value
         if(len(self.firVelFilter.velocitySet) > 1):
-            #magnitudePast = (self.firVelFilter.velocitySet[-2][0]**2 + self.firVelFilter.velocitySet[-2][1]**2 + self.firVelFilter.velocitySet[-2][2]**2)**0.5
+            #Finds the difference between the last valid value and the current value
             magnitudePast = (self.lastValidVel[0]**2 + self.lastValidVel[1]**2 + self.lastValidVel[2]**2)**0.5            
             magnitudeCurr = (self.firVelFilter.velocitySet[-1][0]**2 + self.firVelFilter.velocitySet[-1][1]**2 + self.firVelFilter.velocitySet[-1][2]**2)**0.5
-            if(abs(magnitudePast - magnitudeCurr) > self.firVelFilter.bandWidth):
+            if(abs(magnitudePast - magnitudeCurr) > self.firVelFilter.thresholdVal):
                 #Did not pass the threshold, update value in the firVelFilter velocity set
                 self.Velocity[0] = self.lastValidVel
                 self.firVelFilter.velocitySet[-1]  = self.lastValidVel
             else:
-                #Passes threshold, apply the low pass filter
+                #Passes threshold, apply the low pass filter and update this current value as the last valid value
                 if(self.firVelFilter.isFilteringAvailable()):
                     self.Velocity[0] = self.firVelFilter.calculateFilteredVelocity()
                 else:
@@ -151,8 +132,7 @@ class Sensor:
         else:
             self.Velocity[0] = self.firVelFilter.velocitySet[-1]
             self.lastValidVel = self.firVelFilter.velocitySet[-1]
-        
-                
+           
                         
     def process(self, Position, Orientation, trackingFlag, timeDiff): # Position and Orientation are lists of lists and trackingFlag is a list.
         #Initializing measurements

@@ -19,7 +19,7 @@ class Position_Filter():
             sum[1] = sum[1] + (1/self.order)*(self.originalPositions[len(self.originalPositions)-1-i][1])
             sum[2] = sum[2] + (1/self.order)*(self.originalPositions[len(self.originalPositions)-1-i][2])
         return sum
-    
+    #Position filtering is only available after N measurements where N is the order of the filter
     def isFilteringAvailable(self):
         if(len(self.originalPositions) < self.order):
             return False
