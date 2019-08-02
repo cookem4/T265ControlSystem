@@ -52,18 +52,24 @@ def openPastCameraData():
 #Communicates with camera through reading a single line CSV file that is written to by the camera
 def receiveRigidBodyFrame():
     i=0
-    global positions, orientations, recordingTimes, originalQuart, totalRowList
-    
+    global positions, orientations, recordingTimes, originalQuart, totalRowList, originalPosition
+    firstPosSet = False
     while True:          
         i=i+1
         try:
             csvFile = open("/home/pi/t265/coordinateData.csv", "r")
             content = csvFile.readline()
             row = content.split(",")
+            if(not(firstPosSet)):
+                originalPosition[0][0] = float(row[8])
+                originalPosition[0][1] = float(row[6])
+                originalPosition[0][2] = float(row[7])
+                firstPosSet = True
+            #Calculates the delta in current position from initial position
             #Mapping of coordinate systems is done here
-            positions[0][0] = float(row[8]) #z
-            positions[0][1] = float(row[6]) #x
-            positions[0][2] = float(row[7]) #y
+            positions[0][0] = float(row[8]) - originalPosition[0][0] #z
+            positions[0][1] = float(row[6]) - originalPosition[0][1]#x
+            positions[0][2] = float(row[7]) - originalPosition[0][2] #y
             #The quaternion set here is the difference between the current quaternion and the initial quaternion
             if(originalQuart.x == 0 and originalQuart.y == 0 and originalQuart.z ==0 and originalQuart.w == 0):
                 originalQuart = Quaternion(float(row[2]), float(row[3]), float(row[4]), float(row[5]))
@@ -90,6 +96,7 @@ def mainThread_run():
     global stopBtnPressed
     global totalRowList
     loopCounter = 0
+    timeDivisor = 8300
     expTime = 0
     start = 0
     end = 0
@@ -102,7 +109,7 @@ def mainThread_run():
             event.clear() #Clear the event for the next cycle
             if (sensor.initFlag == False):
                 
-                sensor.process(positions, orientations, trackingFlags, 8200) #Average time difference for velocity calculation of 8.2ms
+                sensor.process(positions, orientations, trackingFlags, timeDivisor) #Average time difference for velocity calculation of 8.2ms
                 expInitTime = time.perf_counter()
             else: ##THIS IS THE MAIN CLOSED_LOOP
 
@@ -116,7 +123,7 @@ def mainThread_run():
                 #    timeDiff = 8200 #Average period of the camera
                 
                 #The calculated average time difference is 6.5ms
-                timeDiff = 8200
+                timeDiff = timeDivisor
                 #Contains position and velocity filtering
                 sensor.process(positions, orientations, trackingFlags, timeDiff)
 
@@ -210,6 +217,8 @@ def mainThread_run():
         loopCounter += 1
         if (loopCounter%1000 == 0):
             print('Average loop rate is:',loopCounter/(time.perf_counter() - expInitTime),'Hz')
+        if (loopCounter %100 == 0):
+            timeDivisor = 1000000/(loopCounter/(time.perf_counter()-expInitTime))
 
 def comThread_run():
     global numCopters
@@ -242,7 +251,7 @@ def comThread_run():
 def checkStopButton():
     global stopBtnPressed
     while True:
-        time.sleep(0.1)
+        time.sleep(0.05)
         #stopBtnPressed = True
         
         EStop_failsafe.updateArmingState()
@@ -276,6 +285,7 @@ if (__name__ == '__main__'):
     initTime = 0.0
     expTime = 0.0
     originalQuart = Quaternion(0, 0, 0, 0)
+    originalPosition = [[0,0,0]]
     errorsZList = []
     totalRowList = []
     ######## Creating instances of all required classes (creating objects) #########
@@ -317,12 +327,12 @@ if (__name__ == '__main__'):
     comThread.start()                           #Start up thread to constantly send rx data
     print("Comunication with copters established and copters are armed. (Thread #2)")
     time.sleep(1.5)                               #Wait for 1.5 second to let the copters go through the arming procedure.
-
+    
     #Experimental thread for checking the Estop button
     btnThread = Thread(target = checkStopButton)
     btnThread.start()
     print("Stop button thread initiated. (Thread #3)")
-
+    
     time.sleep(1)
 
     mainThread = Thread(target = mainThread_run)#The main thread which runs sensor, trajectory planner, and controller modules.

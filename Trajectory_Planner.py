@@ -12,7 +12,7 @@ class Trajectory_Planner:
         trajType = 2 #set to 1 for set points and to 2 for smooth polynomials.
         phase = 0 
 
-        setPointCoordinates = [[0,0,0,0], [0,0,1.1,10], [0,0,1.1,25],[0,0,0,10]] # The sequence of coordinates for the leader copter to get to at a certain time, [x,y,z, Time] all in the world frame!
+        setPointCoordinates = [[0,0,0,0], [0,0,0.5,5],[0,0,0.5,5], [0,0,0,5]] # The sequence of coordinates for the leader copter to get to at a certain time, [x,y,z, Time] all in the world frame!
                                                                          # NOTE: the initial coordinate of the leader is 0 0 0.
         coffsX = []
         coffsY = []
@@ -28,7 +28,7 @@ class Trajectory_Planner:
         
         ARM_FLAG = True         #Commands to be sent to MSP rxThread
         FAILSAFE_FLAG = False
-        maxPositionErrorTolerance = 0.8*3 #meter
+        maxPositionErrorTolerance = 0.5 #meter
 
         index = 1 #Indicates the current number of piece-wise trajectories past sofar
         expTimeElapsed = deadTime + rampUpDuration + trajStartDelay  #Experiment time elapsed at the begining of trajectory generation

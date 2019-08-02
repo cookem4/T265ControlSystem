@@ -28,7 +28,7 @@ class Sensor:
     firPosFilter = Position_Filter(5) #5 is the max order that minimizes phase delay to around 10ms requrement
 
     #This is set in the constructor, don't modify it here
-    firVelFilter = Velocity_Filter_New(1,0.2)
+    firVelFilter = Velocity_Filter_New(1,0.5)
 
     def __init__(self, numCopters):
         for i in range (numCopters):
@@ -40,7 +40,7 @@ class Sensor:
             self.yawFiltered.append(0) # Yaw will be initialized with the actual measurements later.
             self.trackLostCounter.append(0)
             self.firPosFilter = Position_Filter(5)
-            self.firVelFilter = Velocity_Filter_New(1,0.2)
+            self.firVelFilter = Velocity_Filter_New(1,0.5)
             
     def failSafe(self, trackingFlag): # This is a list of tracking indexes
         for i in range (len(trackingFlag)):
