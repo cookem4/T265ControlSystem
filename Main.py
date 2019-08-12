@@ -146,7 +146,7 @@ def mainThread_run():
                 trajPlanner.generate(expTime, sensor.Position, sensor.Velocity)
                                
                 controller.control_allocation(expTime, sensor.yawFiltered,
-                                              trajPlanner.errors, trajPlanner.phase, trajPlanner.rampUpDuration, trajPlanner.rampDownDuration)
+                                              trajPlanner.errors, trajPlanner.phase, trajPlanner.rampUpDuration, trajPlanner.rampDownDuration, orientations)
                 
                 #Set commandsToGo
                 commandsToGoTemp = []

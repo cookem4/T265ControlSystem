@@ -70,14 +70,22 @@ class PB_Control():
         uz = Kp_z * errors[2] + Kd_z * errors[5]
         return [ux, uy, uz]
 
-    def find_lowLC(self, highLC, yaw):
+    def find_lowLC(self, highLC, yaw, orientation):
         epsilon = 0.000001
         delta = math.pi/720
         ux = highLC[0]
         uy = highLC[1]
         uz = highLC[2]
-        # Finding throttle
-        throttle = (ux**2 + uy**2 + uz**2)**(1/2)
+        # Finding throttle - created from force projection on Z axis based on the inner product of the rotation matrix built from the quaternion
+        r = orientation[3]
+        i = orientation[0]
+        j = orientation[1]
+        k = orientation[2]
+        R = [[1-2*(j**2 + k**2), 2*(i*j-k*r), 2*(i*k+j*r)],
+             [2*(i*j+k*r), 1-2*(i**2+k**2), 2*(j*k-i*r)],
+             [2*(i*k-j*r), 2*(j*k+i*r), 1-2*(i**2 + j**2)]]
+        throttle = ux*R[0][2] + uy*R[1][2] + uz*R[2][2]
+        #throttle = (ux**2 + uy**2 + uz**2)**(1/2)
         # Finding roll and pitch
         remainder = np.fmod(yaw, 2 * math.pi)
         if (abs(remainder - math.pi) <= delta) or ((abs(remainder + math.pi)) <= delta):
@@ -124,7 +132,7 @@ class PB_Control():
 ##        self.compensationFactor = self.saturate(abs(self.compensationFactor - 1.0), 0.6) + 1.0
 ##        self.adaptationTime = timer
 
-    def control_allocation(self, timer, yaw, errors, phase, rampUpDuration, rampDownDuration):
+    def control_allocation(self, timer, yaw, errors, phase, rampUpDuration, rampDownDuration, orientations):
         if (self.initYawFlag == False):
             self.desiredYaw = yaw
             self.initYawFlag = True
@@ -153,7 +161,7 @@ class PB_Control():
                 self.fXYZ[i] = sat_highLC
                 #print ('Saturated high-level commands are', sat_highLC)
                 # Find Low-level commands
-                lowLC = self.find_lowLC(sat_highLC, yaw[i])
+                lowLC = self.find_lowLC(sat_highLC, yaw[i], orientations[i])
                 self.throttle[i] = self.saturate(lowLC[0], self.maxThrottle)
                 self.roll[i] = self.saturate(lowLC[1], self.maxRoll) # This is in radians.
                 self.pitch[i] = self.saturate(lowLC[2], self.maxPitch) # This is in radians.
