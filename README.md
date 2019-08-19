@@ -14,8 +14,14 @@ Currently, the position filter uses an order of 5 in order to minimize the phase
 Several html files are generated after the program is run that display flight information. 
 
 ## Current Troubles
+When flown with this program, the drone is very jumpy in the Z direction and can be oscillatory in the XY plane. Force mapping in the Z direction has been experimented with and has been unsuccessful due to the drone not taking off. 
 
+It is believed that the instability of the drone is due to the inaccuracies associated with the T265 camera. Camera position reporting can vary by about a centimetre even when the drone is stationary. With vibrations from the motors also causing drift with time, this can cause oscillations in the control system. It was observed that about 15cm of drift was created from a 30 second flight.
+
+Another problem is delay with the stop button. It is not understood why, but the motors only stop about a second after the stop button is pressed, which is dangerous and can easily damage the drone. Perhps there is some form of delay with the serial ports on the Raspberryh Pi, however, there is no delay with the T265 camera as when it is moved the postion updates on screen instantly.
+
+It was attempted to see if the instability of flight is due to the Raspberry Pi itself by trying to send Motiv motion capture data of position and orientation serially to the Pi. This requires a USB 3.0 M to M connection, which I was not able to use to successfully use to communicate between the computer running Motiv and the Pi.
 
 ## Future Suggestions
- 
+The first step with future work is to see if there is a way to successfully implement force mapping in the Z direction. Another way to improve stability of the copter may be through sensor fusion, possibly with GPS if the drone is used outdoors.
  
