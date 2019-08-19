@@ -9,7 +9,9 @@ In order to run the project one must first run the camera recording app from the
 ## Technical Details
 The control system of this program is written by Keyvan (current PhD candidate) and Mohammad (graduated). Modifications of filtering have been made to allow the camera to report a smoother position and velocity with less noise while minimizing phase delay below 10ms. The matlab code for analysing and designing filters is in the GitHub repository named ____________. There are also several matlab programs for analysing the position reported by the T265 camera, which are contained in the repository named T255MatlabAnalysis. Each of these scripts explain their purpose in the code and some sample data has been included so that the programs can be tested. These matlab scripts can be helpful for understanding the accuracy and capabilities of the camera.
 
+Currently, the position filter uses an order of 5 in order to minimize the phase lag below 10ms and the velocity filter uses an order of 1 (no filtering). Thresholding is done as it is common for there to be large spikes in velocity. 
 
+Several html files are generated after the program is run that display flight information. 
 
 ## Current Troubles
 
