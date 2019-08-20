@@ -81,10 +81,16 @@ class PB_Control():
         i = orientation[0]
         j = orientation[1]
         k = orientation[2]
-        R = [[1-2*(j**2 + k**2), 2*(i*j-k*r), 2*(i*k+j*r)],
+        QuatToR = np.matrix([[1-2*(j**2 + k**2), 2*(i*j-k*r), 2*(i*k+j*r)],
              [2*(i*j+k*r), 1-2*(i**2+k**2), 2*(j*k-i*r)],
-             [2*(i*k-j*r), 2*(j*k+i*r), 1-2*(i**2 + j**2)]]
-        throttle = ux*R[0][2] + uy*R[1][2] + uz*R[2][2]
+             [2*(i*k-j*r), 2*(j*k+i*r), 1-2*(i**2 + j**2)]])
+        R = np.matrix([[0, 0, 1],
+                       [1, 0, 0],
+                       [0, 1, 0]])
+        TransformedQuat = np.cross(QuatToR, R)
+        throttle = ux*TransformedQuat[0][2] + uy*TransformedQuat[1][2] + uz*TransformedQuat[2][2]
+        if(throttle < 0):
+            throttle = 0
         #throttle = (ux**2 + uy**2 + uz**2)**(1/2)
         # Finding roll and pitch
         remainder = np.fmod(yaw, 2 * math.pi)
