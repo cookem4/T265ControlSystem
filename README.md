@@ -14,7 +14,7 @@ Currently, the position filter uses an order of 5 in order to minimize the phase
 Several html files are generated after the program is run that display flight information. 
 
 ## Current Troubles
-When flown with this program, the drone is very jumpy in the Z direction and can be oscillatory in the XY plane. Force mapping in the Z direction has been experimented with and has been unsuccessful due to the drone not taking off. 
+When flown with this program, the drone is very jumpy in the Z direction and can be oscillatory in the XY plane. Force mapping in the Z direction has been experimented with and has been unsuccessful due to the drone not taking off. Force mapping was tested on both the drone controlled by the T265 camera and the standard control system by the main desktop with Motiv to isolate device dependent issues. In both of these tests, the drone was not able to to take off and the propellors spun fast enouch such that one side of the drone lifted off but with no translation.
 
 It is believed that the instability of the drone is due to the inaccuracies associated with the T265 camera. Camera position reporting can vary by about a centimetre even when the drone is stationary. With vibrations from the motors also causing drift with time, this can cause oscillations in the control system. It was observed that about 15cm of drift was created from a 30 second flight.
 
